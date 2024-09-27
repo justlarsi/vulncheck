@@ -48,7 +48,7 @@ def check_firewall():
     return "Firewall is active.✅" if firewall_active else "Warning:❌ Firewall is disabled.⛔"
 
 def check_unauthorized_startup_programs():
-    startup_entries = psutil.win_service_iter()  # Check system startup services
+    startup_entries = psutil.win_service_iter()  
     suspicious_programs = [s.display_name() for s in startup_entries if "suspicious" in s.display_name().lower()]
     if suspicious_programs:
         return f"Warning: Suspicious startup programs found: {', '.join(suspicious_programs)}⛔"
@@ -72,7 +72,7 @@ def check_suspicious_processes():
 
 def check_unauthorized_users():
     users = [user.name for user in psutil.users()]
-    unauthorized_users = [user for user in users if user not in ["trusted_user1", "trusted_user2"]]  # replace with actual trusted users
+    unauthorized_users = [user for user in users if user not in ["trusted_user1", "trusted_user2"]]
     if unauthorized_users:
         return f"Warning: Unauthorized user accounts detected ⛔: {', '.join(unauthorized_users)}"
     return "No unauthorized user accounts detected.✅"
@@ -89,7 +89,7 @@ def check_system_integrity():
     return "System integrity is intact.✅" if integrity_check else "Warning: System integrity compromised.⛔"
 
 def check_critical_updates():
-    updates_needed = os.system("wmic qfe get hotfixid")  # Placeholder for Windows; adjust for Linux/Mac
+    updates_needed = os.system("wmic qfe get hotfixid")
     return "All critical security patches are installed.✅" if updates_needed == 0 else "Warning: Critical security patches missing.⛔"
 
 # Function to check installed software versions
@@ -99,11 +99,11 @@ def check_software():
     except Exception as e:
         return f"Error: {e}"
 def get_device_ip():
-    # Create a socket connection to retrieve the local IP address
+
     try:
-        # Connect to an external server to find the device's IP
+    
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Use a random public server (does not send any data)
+   
         s.connect(("8.8.8.8", 80))
         ip_address = s.getsockname()[0]
         s.close()
@@ -116,7 +116,7 @@ def scan_ports():
     global port_detail, port_description, port_risk
     nm = nmap.PortScanner()
     ip = get_device_ip()
-    nm.scan(f'{ip}', '1-65535')  # Localhost scan for open ports
+    nm.scan(f'{ip}', '1-65535')  
     open_ports = []
     for host in nm.all_hosts():
         for proto in nm[host].all_protocols():
@@ -143,8 +143,7 @@ def scan_ports():
     return open_ports
 
 def get_port_description(port):
-    # This function returns a description of the port and its risks
-    # You can add more port descriptions here
+
     port_descriptions = {
         20: 'FTP (File Transfer Protocol) - used for transferring files over the internet.',
         21: 'FTP (File Transfer Protocol) - used for transferring files over the internet.',
@@ -196,7 +195,7 @@ def get_port_description(port):
 def scan_ports_2():
     nm = nmap.PortScanner()
 
-    # nm.scan(f'{ip}', '1-1024') # Localhost scan for open ports
+    # nm.scan(f'{ip}', '1-1024')
     nm.scan('127.0.0.1', '1-1024')
     open_ports_2 = []
     for host in nm.all_hosts():
@@ -228,7 +227,7 @@ def analyze_vulnerabilities(software, vulnerabilities):
             elif 'baseMetricV3' in vulnerability['impact']:
                 cvss_score = vulnerability['impact']['baseMetricV3']['cvssV3']['baseScore']
 
-        cvss_score = cvss_score or 0.0  # Default to 0 if no score
+        cvss_score = cvss_score or 0.0  
         if cvss_score >= 9.0:
             severity = "Critical"
         elif cvss_score >= 7.0:
@@ -280,7 +279,7 @@ def check_vulnerabilities(installed_software, vuln_file):
 
 
 class UpdateWorker(QThread):
-    update_complete = pyqtSignal(str, str)  # Signal to emit update completion message and version
+    update_complete = pyqtSignal(str, str) 
 
     def __init__(self, software_name):
         super().__init__()
@@ -305,7 +304,7 @@ class UpdateWorker(QThread):
                 updated_version = self.update_linux_package()
 
             if not updated_version:
-                updated_version = self.update_with_winget()  # Fallback to winget for general apps
+                updated_version = self.update_with_winget() 
 
             self.update_complete.emit(f"{self.software_name} update successful.", updated_version)
         except Exception as e:
@@ -325,14 +324,14 @@ class UpdateWorker(QThread):
 
     def update_python(self):
         try:
-            # Configure logging for better debug information
+            
             logging.basicConfig(filename='update_python_packages.log', level=logging.INFO,
                                 format='%(asctime)s - %(levelname)s - %(message)s')
 
-            # Get the current Python version
+            # Get the current Python version 
             current_version = sys.version.split()[0]
 
-            # Update Python to the latest version using pyupgrade
+            # Update Python to the latest version 
             logging.info("Updating Python to the latest version...")
             subprocess.run(["py", "-m", "pip", "install", "--upgrade", "pip"], capture_output=True, text=True,
                            check=True)
@@ -344,7 +343,7 @@ class UpdateWorker(QThread):
             subprocess.run(["python", "--version"], capture_output=True, text=True, check=True).stdout.strip().split()[
                 1]
 
-            # Check if the update was successful
+            
             if updated_version != current_version:
                 self.update_complete.emit(f"Python updated successfully from {current_version} to {updated_version}.",
                                           updated_version)
@@ -363,7 +362,7 @@ class UpdateWorker(QThread):
 
     def update_windows_os(retries=3, timeout=600):
         try:
-            # Check if script has admin privileges
+            # Check if it has admin priv
             if not os.getuid() == 0:
                 raise PermissionError("Administrator privileges are required to perform Windows updates.")
 
@@ -374,7 +373,7 @@ class UpdateWorker(QThread):
                 try:
                     print(f"Attempt {attempt + 1} to update Windows...")
 
-                    # Run the update command with timeout
+                    # Run the update with timeout
                     update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True,
                                                     timeout=timeout)
 
@@ -477,7 +476,7 @@ class UpdateWorker(QThread):
             version_process = subprocess.run(version_command, shell=True, capture_output=True, text=True)
 
             if version_process.returncode == 0:
-                # Assuming the output contains version info in a specific format
+                
                 for line in version_process.stdout.splitlines():
                     if "Version" in line:
                         return line.split(":")[-1].strip()
@@ -494,7 +493,7 @@ class AntiMalwareApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle("Anti-Malware Software")
-        self.setGeometry(100, 100, 900, 700)  # Increased size for better layout
+        self.setGeometry(100, 100, 900, 700) 
         self.setStyleSheet("""
             QWidget {
                 background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1,
@@ -566,19 +565,19 @@ class AntiMalwareApp(QWidget):
         scan_button = QPushButton("Scan System")
         scan_button.setFont(QFont('Arial', 16, QFont.Bold))
         scan_button.clicked.connect(self.run_scan)
-        scan_button.setMinimumHeight(50)  # Increase button height for better UX
+        scan_button.setMinimumHeight(50)  
         main_layout.addWidget(scan_button)
 
         scan_button = QPushButton("Scan Softwares")
         scan_button.setFont(QFont('Arial', 16, QFont.Bold))
         scan_button.clicked.connect(self.run_scan_softwares)
-        scan_button.setMinimumHeight(50)  # Increase button height for better UX
+        scan_button.setMinimumHeight(50) 
         main_layout.addWidget(scan_button)
 
         scan_button = QPushButton("Scan open ports")
         scan_button.setFont(QFont('Arial', 16, QFont.Bold))
         scan_button.clicked.connect(self.run_scan_ports)
-        scan_button.setMinimumHeight(50)  # Increase button height for better UX
+        scan_button.setMinimumHeight(50)  
         main_layout.addWidget(scan_button)
 
         main_layout.addStretch(1)
@@ -638,7 +637,7 @@ class UpdateDialog(QDialog):
 
         self.progress = QProgressBar(self)
         self.progress.setValue(0)
-        self.progress.setFormat("Update Progress: %p%")  # Show percentage with label
+        self.progress.setFormat("Update Progress: %p%") 
         self.progress.setMinimumHeight(30)
         layout.addWidget(self.progress, 0, 0, 1, 2)
 
@@ -719,7 +718,7 @@ class ScanDialog(QDialog):
 
         self.progress = QProgressBar(self)
         self.progress.setValue(0)
-        self.progress.setFormat("Scan Progress: %p%")  # Show percentage with label
+        self.progress.setFormat("Scan Progress: %p%") 
         self.progress.setMinimumHeight(30)
         layout.addWidget(self.progress, 0, 0, 1, 2)
 
@@ -808,7 +807,7 @@ class ScanDialog(QDialog):
         update_status = check_critical_updates()
         self.progress.setValue(95)
 
-        # Display scan results
+       
         system_info_label = QLabel(
             f"Antivirus: {antivirus_status}\n"
             f"\n"
@@ -883,7 +882,7 @@ class ScanDialog(QDialog):
                     vulnerability_text_edit = QTextEdit()
                     vulnerability_text_edit.setReadOnly(True)
                     vulnerability_text_edit.setText(vulnerability_text)
-                    vulnerability_text_edit.setMinimumHeight(500) # Increase the height of the text edit
+                    vulnerability_text_edit.setMinimumHeight(500) 
                     self.scroll_layout.addWidget(vulnerability_text_edit)
 
                     update_button = QPushButton(f"Update {rec['software']}")
@@ -944,7 +943,7 @@ class ScanDialog(QDialog):
 
 
 class UpdateWorker(QThread):
-    update_complete = pyqtSignal(str, str)  # Signal to emit update completion message and version
+    update_complete = pyqtSignal(str, str) 
 
     def __init__(self, software_name):
         super().__init__()
@@ -969,7 +968,7 @@ class UpdateWorker(QThread):
                 updated_version = self.update_linux_package()
 
             if not updated_version:
-                updated_version = self.update_with_winget()  # Fallback to winget for general apps
+                updated_version = self.update_with_winget() 
 
             self.update_complete.emit(f"{self.software_name} update successful.", updated_version)
         except Exception as e:
@@ -1114,7 +1113,7 @@ class UpdateWorker(QThread):
             version_process = subprocess.run(version_command, shell=True, capture_output=True, text=True)
 
             if version_process.returncode == 0:
-                # Assuming the output contains version info in a specific format
+               
                 for line in version_process.stdout.splitlines():
                     if "Version" in line:
                         return line.split(":")[-1].trim()

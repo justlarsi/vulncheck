@@ -9,6 +9,7 @@ import platform
 import json
 import requests
 import subprocess
+import ctypes
 import os
 import sys
 import time
@@ -362,42 +363,63 @@ class UpdateWorker(QThread):
 
     def update_windows_os(retries=3, timeout=600):
         try:
-            # Check if it has admin priv
-            if not os.getuid() == 0:
+            # Check for administrator privileges (Windows-only)
+            if not os.name == 'nt':  # Ensure the script is running on Windows
+                raise EnvironmentError("This script can only be run on Windows OS.")
+            if not ctypes.windll.shell32.IsUserAnAdmin():
                 raise PermissionError("Administrator privileges are required to perform Windows updates.")
 
-            update_command = 'powershell "Get-WindowsUpdate -Install -AcceptAll"'
+            # Command to initiate Windows update
+            update_command = 'powershell -Command "Install-Module PSWindowsUpdate -Force; Import-Module PSWindowsUpdate; Get-WindowsUpdate -Install -AcceptAll -AutoReboot"'
 
-            # Adding retry mechanism and timeout
+            # Retry mechanism
             for attempt in range(retries):
                 try:
-                    print(f"Attempt {attempt + 1} to update Windows...")
+                    print(f"Attempt {attempt + 1} of {retries} to update Windows...")
 
-                    # Run the update with timeout
-                    update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True,
-                                                    timeout=timeout)
+                    # Execute the update command with timeout
+                    update_process = subprocess.run(
+                        update_command,
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=timeout
+                    )
 
                     if update_process.returncode == 0:
+                        print("Update Output:")
                         print(update_process.stdout)
                         return "Windows OS updated successfully."
                     else:
-                        print(f"Windows Update failed: {update_process.stderr}")
-                        raise Exception("Update command returned non-zero exit code.")
+                        print(f"Update command failed with return code {update_process.returncode}:")
+                        print(update_process.stderr)
+                        raise subprocess.SubprocessError(
+                            f"Update command returned non-zero exit code: {update_process.returncode}")
 
                 except subprocess.TimeoutExpired:
-                    print("Update process timed out.")
+                    print(f"Update process timed out on attempt {attempt + 1}. Retrying...")
+                except subprocess.SubprocessError as e:
+                    print(f"Subprocess error during attempt {attempt + 1}: {str(e)}")
                 except Exception as e:
-                    print(f"Error during update attempt {attempt + 1}: {str(e)}")
+                    print(f"Unexpected error during attempt {attempt + 1}: {str(e)}")
 
-                # Retry after a short delay
+                # Wait before retrying
                 time.sleep(5)
 
+            # If all retries fail, raise an exception
             raise Exception("Failed to update Windows OS after multiple attempts.")
 
         except PermissionError as e:
-            raise Exception(f"Permission error: {str(e)}")
+            print(f"Permission error: {str(e)}")
+            return str(e)
+        except EnvironmentError as e:
+            print(f"Environment error: {str(e)}")
+            return str(e)
         except Exception as e:
-            raise Exception(f"Update failed for Windows OS: {str(e)}")
+            print(f"Critical error occurred: {str(e)}")
+            return f"Update failed: {str(e)}"
+
+        # Import ctypes for privilege checks (Windows-specific)
     def update_nodejs(self):
         try:
             # Update npm itself
@@ -882,7 +904,7 @@ class ScanDialog(QDialog):
                     vulnerability_text_edit = QTextEdit()
                     vulnerability_text_edit.setReadOnly(True)
                     vulnerability_text_edit.setText(vulnerability_text)
-                    vulnerability_text_edit.setMinimumHeight(500) 
+                    vulnerability_text_edit.setMinimumHeight(500)
                     self.scroll_layout.addWidget(vulnerability_text_edit)
 
                     update_button = QPushButton(f"Update {rec['software']}")

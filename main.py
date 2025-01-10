@@ -914,9 +914,10 @@ class ScanDialog(QDialog):
 
         self.loading_label.setText("Scan complete.")
         for port in open_ports:
-            port_label = QLabel(f"Port {port['port']}"
+            port_label = QLabel(f"{port['detail']}"
                                 "\n"
-                                f"{port['description']}")
+                                f"{port['description']}"
+                                )
             self.scroll_layout.addWidget(port_label)
             # port_description_label = QLabel(port['description'])
             # self.scroll_layout.addWidget(port_description_label)

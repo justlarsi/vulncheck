@@ -363,8 +363,8 @@ class UpdateWorker(QThread):
 
     def update_windows_os(retries=3, timeout=600):
         try:
-            # Check for administrator privileges (Windows-only)
-            if not os.name == 'nt':  # Ensure the script is running on Windows
+
+            if not os.name == 'nt':
                 raise EnvironmentError("This script can only be run on Windows OS.")
             if not ctypes.windll.shell32.IsUserAnAdmin():
                 raise PermissionError("Administrator privileges are required to perform Windows updates.")
@@ -419,7 +419,7 @@ class UpdateWorker(QThread):
             print(f"Critical error occurred: {str(e)}")
             return f"Update failed: {str(e)}"
 
-        # Import ctypes for privilege checks (Windows-specific)
+
     def update_nodejs(self):
         try:
             # Update npm itself
@@ -465,8 +465,9 @@ class UpdateWorker(QThread):
             raise Exception(f"Update failed for Docker: {str(e)}")
 
     def update_office(self):
+
         try:
-            # Office 2013 or other Office versions
+
             update_command = 'powershell "(New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher().Search($null).Updates | foreach { $_.Install() }"'
             update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
 
@@ -965,184 +966,184 @@ class ScanDialog(QDialog):
         QMessageBox.information(self, "Update Complete", f"{message}\nUpdated Version: {version}")
 
 
-class UpdateWorker(QThread):
-    update_complete = pyqtSignal(str, str) 
-
-    def __init__(self, software_name):
-        super().__init__()
-        self.software_name = software_name
-
-    def run(self):
-        try:
-            updated_version = None
-            if self.software_name.lower() == "python":
-                updated_version = self.update_python()
-            elif self.software_name.lower() == "microsoft windows":
-                updated_version = self.update_windows_os()
-            elif self.software_name.lower() == "node.js":
-                updated_version = self.update_nodejs()
-            elif self.software_name.lower() == "java":
-                updated_version = self.update_java()
-            elif self.software_name.lower() == "rust":
-                updated_version = self.update_rust()
-            elif self.software_name.lower() == "docker":
-                updated_version = self.update_docker()
-            elif platform.system().lower() == "linux":
-                updated_version = self.update_linux_package()
-
-            if not updated_version:
-                updated_version = self.update_with_winget() 
-
-            self.update_complete.emit(f"{self.software_name} update successful.", updated_version)
-        except Exception as e:
-            self.update_complete.emit(f"Update failed for {self.software_name}: {str(e)}", "Unknown Version")
-
-    def update_with_winget(self):
-        try:
-            update_command = f'winget upgrade --id "{self.software_name}"'
-            update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
-
-            if update_process.returncode != 0:
-                raise Exception(f"Update failed: {update_process.stderr}")
-
-            return self.get_updated_version(self.software_name)
-        except Exception as e:
-            raise Exception(f"Update failed for {self.software_name}: {str(e)}")
-
-    def update_python(self):
-        try:
-            # Configure logging for better debug information
-            logging.basicConfig(filename='update_python_packages.log', level=logging.INFO,
-                                format='%(asctime)s - %(levelname)s - %(message)s')
-
-            # Get the current Python version
-            current_version = sys.version.split()[0]
-
-            # Update Python to the latest version using pyupgrade
-            logging.info("Updating Python to the latest version...")
-            subprocess.run(["py", "-m", "pip", "install", "--upgrade", "pip"], capture_output=True, text=True,
-                           check=True)
-            subprocess.run(["py", "-m", "pip", "install", "--upgrade", "setuptools"], capture_output=True, text=True,
-                           check=True)
-
-            # Get the updated Python version
-            updated_version = subprocess.run(["python", "--version"], capture_output=True, text=True,
-                                             check=True).stdout.strip().split()[1]
-
-            # Check if the update was successful
-            if updated_version != current_version:
-                return updated_version
-            else:
-                return current_version
-
-        except subprocess.CalledProcessError as e:
-            error_message = f"Update process failed: {e.stderr}"
-            logging.error(error_message)
-            raise Exception(error_message)
-        except Exception as e:
-            # Catch all unexpected errors
-            error_message = f"Unexpected error during update: {str(e)}"
-            logging.error(error_message)
-            raise Exception(error_message)
-
-    def update_windows_os(self):
-        try:
-            update_command = 'powershell "Get-WindowsUpdate -Install -AcceptAll"'
-            update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
-
-            if update_process.returncode != 0:
-                raise Exception(f"Windows Update failed: {update_process.stderr}")
-
-            return "Windows OS updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Windows OS: {str(e)}")
-
-    def update_nodejs(self):
-        try:
-            # Update npm itself
-            subprocess.run("npm install -g npm", shell=True, capture_output=True, text=True)
-            update_process = subprocess.run("npm outdated -g", shell=True, capture_output=True, text=True)
-
-            outdated_packages = update_process.stdout.splitlines()
-            updated_packages = []
-            for pkg in outdated_packages:
-                package_name = pkg.split()[0]
-                subprocess.run(f"npm install -g {package_name}", shell=True, capture_output=True, text=True)
-                updated_packages.append(package_name)
-
-            return ", ".join(updated_packages) if updated_packages else "No npm packages updated."
-        except Exception as e:
-            raise Exception(f"Update failed for Node.js: {str(e)}")
-
-    def update_java(self):
-        try:
-            update_command = "sdk update java"
-            update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
-
-            if update_process.returncode != 0:
-                raise Exception(f"Java update failed: {update_process.stderr}")
-
-            return "Java updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Java: {str(e)}")
-
-    def update_rust(self):
-        try:
-            subprocess.run("rustup update", shell=True, capture_output=True, text=True)
-            return "Rust toolchain updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Rust: {str(e)}")
-
-    def update_docker(self):
-        try:
-            subprocess.run("docker system prune -f", shell=True, capture_output=True, text=True)
-            subprocess.run("docker images | grep -v REPOSITORY | awk '{print $1\":\"$2}' | xargs -I {} docker pull {}",
-                           shell=True, capture_output=True, text=True)
-            return "Docker images updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Docker: {str(e)}")
-
-    def update_office(self):
-        try:
-            # Office 2013 or other Office versions
-            update_command = 'powershell "(New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher().Search($null).Updates | foreach { $_.Install() }"'
-            update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
-
-            if update_process.returncode != 0:
-                raise Exception(f"Microsoft Office update failed: {update_process.stderr}")
-
-            return "Microsoft Office updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Microsoft Office: {str(e)}")
-
-    def update_linux_package(self):
-        try:
-            distro = platform.linux_distribution()[0].lower()
-            if "ubuntu" in distro or "debian" in distro:
-                update_command = "sudo apt update && sudo apt upgrade -y"
-            elif "fedora" in distro or "centos" in distro:
-                update_command = "sudo yum update -y"
-            else:
-                return "Unsupported Linux distro for automated updates."
-
-            subprocess.run(update_command, shell=True, capture_output=True, text=True)
-            return f"{distro.capitalize()} packages updated successfully."
-        except Exception as e:
-            raise Exception(f"Update failed for Linux package: {str(e)}")
-
-    def get_updated_version(self, software_name):
-        try:
-            version_command = f'winget show --id "{software_name}"'
-            version_process = subprocess.run(version_command, shell=True, capture_output=True, text=True)
-
-            if version_process.returncode == 0:
-               
-                for line in version_process.stdout.splitlines():
-                    if "Version" in line:
-                        return line.split(":")[-1].trim()
-            return "Unknown Version"
-        except Exception:
-            return "Unknown Version"
+# class UpdateWorker(QThread):
+#     update_complete = pyqtSignal(str, str)
+#
+#     def __init__(self, software_name):
+#         super().__init__()
+#         self.software_name = software_name
+#
+#     def run(self):
+#         try:
+#             updated_version = None
+#             if self.software_name.lower() == "python":
+#                 updated_version = self.update_python()
+#             elif self.software_name.lower() == "microsoft windows":
+#                 updated_version = self.update_windows_os()
+#             elif self.software_name.lower() == "node.js":
+#                 updated_version = self.update_nodejs()
+#             elif self.software_name.lower() == "java":
+#                 updated_version = self.update_java()
+#             elif self.software_name.lower() == "rust":
+#                 updated_version = self.update_rust()
+#             elif self.software_name.lower() == "docker":
+#                 updated_version = self.update_docker()
+#             elif platform.system().lower() == "linux":
+#                 updated_version = self.update_linux_package()
+#
+#             if not updated_version:
+#                 updated_version = self.update_with_winget()
+#
+#             self.update_complete.emit(f"{self.software_name} update successful.", updated_version)
+#         except Exception as e:
+#             self.update_complete.emit(f"Update failed for {self.software_name}: {str(e)}", "Unknown Version")
+#
+#     def update_with_winget(self):
+#         try:
+#             update_command = f'winget upgrade --id "{self.software_name}"'
+#             update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
+#
+#             if update_process.returncode != 0:
+#                 raise Exception(f"Update failed: {update_process.stderr}")
+#
+#             return self.get_updated_version(self.software_name)
+#         except Exception as e:
+#             raise Exception(f"Update failed for {self.software_name}: {str(e)}")
+#
+#     def update_python(self):
+#         try:
+#             # Configure logging for better debug information
+#             logging.basicConfig(filename='update_python_packages.log', level=logging.INFO,
+#                                 format='%(asctime)s - %(levelname)s - %(message)s')
+#
+#             # Get the current Python version
+#             current_version = sys.version.split()[0]
+#
+#             # Update Python to the latest version using pyupgrade
+#             logging.info("Updating Python to the latest version...")
+#             subprocess.run(["py", "-m", "pip", "install", "--upgrade", "pip"], capture_output=True, text=True,
+#                            check=True)
+#             subprocess.run(["py", "-m", "pip", "install", "--upgrade", "setuptools"], capture_output=True, text=True,
+#                            check=True)
+#
+#             # Get the updated Python version
+#             updated_version = subprocess.run(["python", "--version"], capture_output=True, text=True,
+#                                              check=True).stdout.strip().split()[1]
+#
+#             # Check if the update was successful
+#             if updated_version != current_version:
+#                 return updated_version
+#             else:
+#                 return current_version
+#
+#         except subprocess.CalledProcessError as e:
+#             error_message = f"Update process failed: {e.stderr}"
+#             logging.error(error_message)
+#             raise Exception(error_message)
+#         except Exception as e:
+#             # Catch all unexpected errors
+#             error_message = f"Unexpected error during update: {str(e)}"
+#             logging.error(error_message)
+#             raise Exception(error_message)
+#
+#     def update_windows_os(self):
+#         try:
+#             update_command = 'powershell "Get-WindowsUpdate -Install -AcceptAll"'
+#             update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
+#
+#             if update_process.returncode != 0:
+#                 raise Exception(f"Windows Update failed: {update_process.stderr}")
+#
+#             return "Windows OS updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Windows OS: {str(e)}")
+#
+#     def update_nodejs(self):
+#         try:
+#             # Update npm itself
+#             subprocess.run("npm install -g npm", shell=True, capture_output=True, text=True)
+#             update_process = subprocess.run("npm outdated -g", shell=True, capture_output=True, text=True)
+#
+#             outdated_packages = update_process.stdout.splitlines()
+#             updated_packages = []
+#             for pkg in outdated_packages:
+#                 package_name = pkg.split()[0]
+#                 subprocess.run(f"npm install -g {package_name}", shell=True, capture_output=True, text=True)
+#                 updated_packages.append(package_name)
+#
+#             return ", ".join(updated_packages) if updated_packages else "No npm packages updated."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Node.js: {str(e)}")
+#
+#     def update_java(self):
+#         try:
+#             update_command = "sdk update java"
+#             update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
+#
+#             if update_process.returncode != 0:
+#                 raise Exception(f"Java update failed: {update_process.stderr}")
+#
+#             return "Java updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Java: {str(e)}")
+#
+#     def update_rust(self):
+#         try:
+#             subprocess.run("rustup update", shell=True, capture_output=True, text=True)
+#             return "Rust toolchain updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Rust: {str(e)}")
+#
+#     def update_docker(self):
+#         try:
+#             subprocess.run("docker system prune -f", shell=True, capture_output=True, text=True)
+#             subprocess.run("docker images | grep -v REPOSITORY | awk '{print $1\":\"$2}' | xargs -I {} docker pull {}",
+#                            shell=True, capture_output=True, text=True)
+#             return "Docker images updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Docker: {str(e)}")
+#
+#     def update_office(self):
+#         try:
+#             # Office 2013 or other Office versions
+#             update_command = 'powershell "(New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher().Search($null).Updates | foreach { $_.Install() }"'
+#             update_process = subprocess.run(update_command, shell=True, capture_output=True, text=True)
+#
+#             if update_process.returncode != 0:
+#                 raise Exception(f"Microsoft Office update failed: {update_process.stderr}")
+#
+#             return "Microsoft Office updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Microsoft Office: {str(e)}")
+#
+#     def update_linux_package(self):
+#         try:
+#             distro = platform.linux_distribution()[0].lower()
+#             if "ubuntu" in distro or "debian" in distro:
+#                 update_command = "sudo apt update && sudo apt upgrade -y"
+#             elif "fedora" in distro or "centos" in distro:
+#                 update_command = "sudo yum update -y"
+#             else:
+#                 return "Unsupported Linux distro for automated updates."
+#
+#             subprocess.run(update_command, shell=True, capture_output=True, text=True)
+#             return f"{distro.capitalize()} packages updated successfully."
+#         except Exception as e:
+#             raise Exception(f"Update failed for Linux package: {str(e)}")
+#
+#     def get_updated_version(self, software_name):
+#         try:
+#             version_command = f'winget show --id "{software_name}"'
+#             version_process = subprocess.run(version_command, shell=True, capture_output=True, text=True)
+#
+#             if version_process.returncode == 0:
+#
+#                 for line in version_process.stdout.splitlines():
+#                     if "Version" in line:
+#                         return line.split(":")[-1].trim()
+#             return "Unknown Version"
+#         except Exception:
+#             return "Unknown Version"
 
 
 if __name__ == '__main__':
